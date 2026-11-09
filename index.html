@@ -1,0 +1,523 @@
+<title>Gifty Snow Globe</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@700&family=JetBrains+Mono:wght@500&family=Poppins:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: control rail beside a phone stage. The stage holds the real Gifty screens (rebuilt from the Figma frames, 390px logical width) over a physics canvas. */
+:root{
+  --page:#1e1e22; --rail:#2a2a30; --ink:#f4f4f6; --muted:#a6a6b0; --line:#3a3a42; --accent:#ffd000; --accent-ink:#141210;
+  --font:'Poppins',system-ui,-apple-system,'Segoe UI',sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--page);color:var(--ink);font-family:var(--font);margin:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px}
+.wrap{max-width:900px;margin:0 auto;display:flex;flex-wrap:wrap;gap:28px;justify-content:center;align-items:flex-start}
+.rail{flex:1 1 260px;max-width:320px;min-width:0;background:var(--rail);border:1px solid var(--line);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:18px}
+.rail h1{font-size:18px;font-weight:600;margin:0}
+.rail p{font-size:12px;color:var(--muted);line-height:1.5;margin:0}
+.grp{display:flex;flex-direction:column;gap:8px}
+.grp>label,.grp>.lbl{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{font:500 13px var(--font);color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.hint{font-size:11px;color:var(--muted);line-height:1.5}
+.stage-col{flex:0 1 390px;min-width:0;width:390px;max-width:100%;display:flex;flex-direction:column;gap:12px;align-items:center}
+.occ2{display:none}
+.phone{position:relative;overflow:hidden;background:#ffd000;border-radius:6px;box-shadow:0 0 0 1px #0e0e11,0 20px 50px rgba(0,0,0,.5);touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.phone canvas{position:absolute;left:0;top:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.scr{position:absolute;left:0;top:0;width:390px;transform-origin:0 0;z-index:1;color:#141210;font-family:'Poppins',system-ui,sans-serif}
+.scr div{position:absolute}
+.scr .t{white-space:nowrap;line-height:normal;font-family:'Poppins',sans-serif}
+.scr .w{white-space:normal}
+.scr [contenteditable]{outline:0;-webkit-user-select:text;user-select:text}
+.scr [data-act]{cursor:pointer}
+.hl{font-family:'Oswald',Impact,sans-serif;font-weight:700;line-height:48px;white-space:nowrap}
+.cs{overflow-x:auto;overflow-y:hidden;scrollbar-width:none;touch-action:pan-x}
+.cs::-webkit-scrollbar{display:none}
+.moves{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:390px}
+.moves button{font:500 13px var(--font);color:var(--ink);background:#2a2a30;border:1px solid var(--line);border-radius:12px;padding:10px 14px;cursor:pointer}
+.moves button:active{background:#3a3a42}
+.moves .play{background:var(--ink);color:var(--page);border-color:var(--ink);min-width:92px}
+.moves .play[aria-pressed=true]{background:#2a2a30;color:var(--ink);border-color:var(--ink)}
+.moves button[aria-pressed=true]:not(.play){background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.moves .msg{flex-basis:100%;text-align:center;font-size:11px;color:var(--muted);min-height:16px}
+.steps{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.steps button{font:500 12px var(--font);background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer}
+.steps button[aria-current=true]{background:var(--ink);color:var(--page);border-color:var(--ink)}
+@media (max-width:640px){.occ2{display:flex}.rail{order:2;max-width:none;flex-basis:100%}.stage-col{order:1}}
+</style>
+
+<div class="wrap">
+  <aside class="rail" aria-label="Snow globe controls">
+    <div class="grp"><h1>Gifty snow globe</h1>
+    <p>The real Gifty screens, rebuilt from the Figma frames, over a physics layer. Tilt by dragging, flick to shake, tap to pop bubbles. Pick an occasion in step 03 and the globe follows.</p></div>
+    <div class="grp"><span class="lbl" id="occ-l">Occasion</span>
+      <div class="seg" role="group" aria-labelledby="occ-l" id="occ">
+        <button data-o="because" aria-pressed="true">Just because</button>
+        <button data-o="birthday" aria-pressed="false">Birthday</button>
+        <button data-o="graduation" aria-pressed="false">Graduation</button>
+        <button data-o="wedding" aria-pressed="false">Wedding</button>
+        <button data-o="holiday" aria-pressed="false">Holiday</button>
+        <button data-o="christmas" aria-pressed="false">Christmas</button>
+      </div></div>
+    <div class="grp"><label for="int">Intensity <span id="intv"></span></label><input id="int" type="range" min="10" max="100" value="55"></div>
+    <div class="grp"><label for="grav">Tilt strength <span id="gv"></span></label><input id="grav" type="range" min="0" max="100" value="60"></div>
+    <p class="hint">Cards act as ledges: bubbles rest under them, then slip off the sides. Reduced motion limits the layer to a slow drift.</p>
+  </aside>
+
+  <div class="stage-col">
+    <div class="seg occ2" id="occ2" role="group" aria-label="Occasion">
+      <button data-o="because" aria-pressed="true">Just because</button>
+      <button data-o="birthday" aria-pressed="false">Birthday</button>
+      <button data-o="graduation" aria-pressed="false">Graduation</button>
+      <button data-o="wedding" aria-pressed="false">Wedding</button>
+      <button data-o="holiday" aria-pressed="false">Holiday</button>
+      <button data-o="christmas" aria-pressed="false">Christmas</button>
+    </div>
+    <div class="seg" id="flows" role="group" aria-label="Flow"><button data-f="send" aria-pressed="true">Send</button><button data-f="recv" aria-pressed="false">Receive</button></div>
+    <div class="phone" id="phone"><canvas id="cv"></canvas><div class="scr" id="scr"></div></div>
+    <div class="moves" id="moves" role="group" aria-label="Moves">
+      <button class="play" id="pause" aria-pressed="false">Pause</button>
+      <button data-fx="shake">Shake</button>
+      <button data-fx="vortex">Whirlpool</button>
+      <button data-fx="fountain">Fountain</button>
+      <button data-fx="gust">Gust</button>
+      <button data-fx="zerog">Zero gravity</button>
+      <button data-fx="spray">Bubble spray</button>
+      <button data-fx="pop">Pop</button>
+      <button data-fx="settle">Settle</button>
+      <button id="blowhold">Hold to blow</button>
+      <button id="blowmic" aria-pressed="false">Blow into mic</button>
+      <button id="motion">Use phone motion</button>
+      <div class="msg" id="mmsg">Drag to tilt and swirl. Flick hard to shake. Tap a bubble to pop it.</div>
+    </div>
+    <div class="steps" id="steps" role="group" aria-label="Screens"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var coarse = window.matchMedia && matchMedia('(pointer: coarse)').matches;
+  var IN='#141210',CR='#fbf7ee',FD='#f1ebde',DV='#e4dccb',MU='#8a8077',MD='#6e6459';
+  var SH1='0 10px 28px -4px rgba(0,0,0,.14)',SH2='0 6px 16px -2px rgba(0,0,0,.1)';
+  var BTC='<svg viewBox="0 0 38 38" width="100%" height="100%"><circle cx="19" cy="19" r="19" fill="#F7931A"/><path d="M27.882 16.5881C28.2361 14.0868 26.3475 12.7767 23.7508 11.8834L24.5771 8.48883L22.5115 7.95285L21.6852 11.2878C21.1541 11.1687 20.5639 11.0496 20.0328 10.871L20.859 7.53598L18.7934 7L17.9672 10.3945C17.4951 10.2754 17.082 10.1563 16.6689 10.0968L13.8361 9.38213L13.3049 11.5856C13.3049 11.5856 14.8393 11.9429 14.7803 11.9429C15.6066 12.1811 15.7836 12.7171 15.7246 13.1935L14.7803 17.0645C14.8393 17.0645 14.8984 17.1241 15.0164 17.1241L14.7803 17.0645L13.423 22.4839C13.3049 22.7221 13.0689 23.139 12.4787 22.9603C12.4787 23.0198 11.0033 22.603 11.0033 22.603L10 24.9851L12.6557 25.6402C13.1279 25.7593 13.659 25.8784 14.1311 26.0571L13.3049 29.5112L15.3705 30.0471L16.1967 26.6526C16.7869 26.8313 17.318 26.9504 17.8492 27.0695L17.023 30.464L19.0885 31L19.9148 27.5459C23.4557 28.201 26.1115 27.9628 27.2328 24.6873C28.118 22.067 27.1738 20.5186 25.2852 19.5062C26.6426 19.2084 27.7049 18.2556 28 16.3499L27.882 16.5881ZM23.0426 23.4367C22.3934 26.0571 18.0262 24.6278 16.6098 24.2705L17.7311 19.7444C19.1475 20.1017 23.6918 20.8164 23.0426 23.4367ZM23.6918 16.5285C23.1016 18.9107 19.4426 17.7196 18.2623 17.4218L19.2656 13.3127C20.4459 13.6104 24.282 14.1464 23.6918 16.5285Z" fill="#fff"/></svg>';
+  var ETHG='<svg viewBox="0 0 28 28" width="100%" height="100%"><path d="M13.7144 1.71436L13.543 2.22864V16.9715L13.7144 17.1429L20.5715 13.1144L13.7144 1.71436Z" fill="#8A92B2"/><path d="M13.7143 1.71436L6.85718 13.1144L13.7143 17.1429V9.94293V1.71436Z" fill="#B6BCD4"/><path d="M13.7144 18.4286L13.6287 18.6V23.8286L13.7144 24.0857L20.5715 14.4L13.7144 18.4286Z" fill="#8A92B2"/><path d="M13.7143 24.0857V18.4286L6.85718 14.4L13.7143 24.0857Z" fill="#B6BCD4"/><path d="M13.7144 17.1429L20.5715 13.1143L13.7144 9.94287V17.1429Z" fill="#62688F"/><path d="M6.85718 13.1143L13.7143 17.1429V9.94287L6.85718 13.1143Z" fill="#7A81A6"/></svg>';
+  var XRPG='<svg viewBox="0 0 28 28" width="100%" height="100%"><path d="M19.7743 6.85718H22.2514L17.0957 11.9632C16.1943 12.8513 14.9797 13.3491 13.7143 13.3491C12.4488 13.3491 11.2342 12.8513 10.3328 11.9632L5.17282 6.85718H7.65425L11.5714 10.734C12.1418 11.2971 12.9111 11.6127 13.7125 11.6127C14.514 11.6127 15.2833 11.2971 15.8537 10.734L19.7743 6.85718ZM7.62425 21.054H5.14282L10.3328 15.9172C11.2342 15.0291 12.4488 14.5312 13.7143 14.5312C14.9797 14.5312 16.1943 15.0291 17.0957 15.9172L22.2857 21.0532H19.8042L15.8571 17.1429C15.2867 16.5799 14.5175 16.2642 13.716 16.2642C12.9145 16.2642 12.1452 16.5799 11.5748 17.1429L7.62339 21.054H7.62425Z" fill="#23292F"/></svg>';
+  var CARET='<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="#141210" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>';
+  var CHK='<svg viewBox="0 0 18 18" width="100%" height="100%"><rect width="18" height="18" rx="5" fill="#141210"/><path d="M4.5 9.5L7.5 12.5L13.5 5.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>';
+
+  var state={flow:'send',step:0,amt:100,occ:'because',occName:'Birthday'};
+  var AMT={100:{btc:'0.00120',sat:'120,500',fee:'≈$5  ·  6,000 sat',net:'≈$0.10  ·  120 sat',tot:'≈$105  ·  126,620 sat'},
+           250:{btc:'0.00301',sat:'301,250',fee:'≈$12.50  ·  15,000 sat',net:'≈$0.10  ·  120 sat',tot:'≈$262.60  ·  316,370 sat'},
+           500:{btc:'0.00603',sat:'602,500',fee:'≈$25  ·  30,000 sat',net:'≈$0.10  ·  120 sat',tot:'≈$525.10  ·  632,620 sat'}};
+
+  /* ---------- tiny layout helpers: everything is absolutely placed in Figma pixels ---------- */
+  var ledges=[];
+  function px(v){return v+'px'}
+  function box(x,y,w,h,o){o=o||{};
+    var s='left:'+px(x)+';top:'+px(y)+';width:'+px(w)+';height:'+px(h)+';';
+    if(o.bg)s+='background:'+o.bg+';';
+    if(o.r!=null)s+='border-radius:'+px(o.r)+';';
+    if(o.sh)s+='box-shadow:'+o.sh+';';
+    if(o.b)s+='border:1.5px solid '+o.b+';';
+    if(o.op!=null)s+='opacity:'+o.op+';';
+    if(o.clip)s+='overflow:hidden;';
+    if(o.led)ledges.push({x:x,y:y,w:w,h:h});
+    return '<div style="'+s+'"'+(o.attr?' '+o.attr:'')+'>'+(o.in||'')+'</div>';}
+  var FW={4:400,5:500,6:600,7:700};
+  function tx(x,y,t,o){o=o||{};var w=o.w,a=o.a,left=x;
+    if(w&&a==='c')left=x===0?0:x-w/2;else if(w&&a==='r')left=x-w;
+    var s='left:'+px(left)+';top:'+px(y)+';font-weight:'+FW[o.f||4]+';font-size:'+px(o.s||14)+';color:'+(o.c||IN)+';';
+    if(w)s+='width:'+px(w)+';';
+    if(a)s+='text-align:'+(a==='c'?'center':'right')+';';
+    if(o.ls)s+='letter-spacing:'+o.ls+'px;';
+    if(o.lh)s+='line-height:'+px(o.lh)+';';
+    if(o.u)s+='text-decoration:underline;';
+    if(o.op!=null)s+='opacity:'+o.op+';';
+    if(o.np)s+='pointer-events:none;';
+    return '<div class="t'+(o.wrap?' w':'')+'" style="'+s+'"'+(o.attr?' '+o.attr:'')+'>'+t+'</div>';}
+  function logo(){return tx(28,24,'gifty',{f:7,s:24})}
+  function menu(){return box(322,22,40,40,{bg:CR,r:20,sh:SH2,clip:1,in:box(12,14,16,2,{bg:IN,r:1})+box(12,19,16,2,{bg:IN,r:1})+box(12,24,16,2,{bg:IN,r:1})})}
+  function prog(n){var o='';for(var i=0;i<4;i++)o+=box(28+88*i,118,76,4,{bg:IN,r:2,op:i<n?1:.28});return o}
+  function head(l1,l2,s,w){return '<div class="hl" style="left:28px;top:146px;width:'+w+'px;font-size:'+s+'px">'+l1+'<br>'+l2+'</div>'}
+  function sub(t,w){return tx(28,258,t,{s:14,w:w||330,wrap:1})}
+  function hrow(n,title,stepTxt){title=title||'SEND A GIFT';stepTxt=stepTxt==null?'STEP 0'+n+' / 04':stepTxt;return '<div style="left:26px;top:76px;width:336px;height:32px">'
+    +'<div style="left:0;top:4px;width:24px;height:24px" data-act="back">'+CARET+'</div>'
+    +tx(28,8,'BACK',{f:5,s:10,ls:1.4,attr:'data-act="back"'})
+    +tx(168,8,title,{f:7,s:10,ls:1.4,w:160,a:'c'})
+    +tx(336,8,stepTxt,{f:5,s:10,ls:1.4,w:160,a:'r'})+'</div>'}
+  function strip(){var A=AMT[state.amt];
+    return box(28,312,334,72,{bg:CR,r:24,sh:SH2,clip:1,led:1,in:
+      box(16,12,40,48,{bg:IN,r:12,clip:1,in:box(8,12,24,24,{in:BTC})})
+      +tx(68,18,'YOUR GIFT IS',{f:5,s:10,ls:1.2,c:MU})
+      +tx(68,36,'Bitcoin · $'+state.amt+' · '+A.btc+' BTC',{f:6,s:14})})}
+  function cta(y,label,act){return box(28,y,334,56,{bg:IN,r:28,sh:SH2,led:1,attr:'data-act="'+act+'"'})+tx(195,y+17,label,{f:6,s:16,c:CR,w:334,a:'c',np:1})}
+
+  /* ---------- screens (Figma frames S01b, S02, S03, S04) ---------- */
+  function carCard(x,y,s,bg,sh,inner){return box(x,y,s,s,{bg:bg,r:s*.232,sh:sh,clip:1,in:inner})}
+  function s01b(){
+    var chips=[[54,100],[152,250],[250,500]].map(function(c){var on=state.amt===c[1];
+      return box(c[0],590,86,34,{bg:on?IN:'#efe9dc',r:17,attr:'data-act="amt" data-v="'+c[1]+'"'})+tx(c[0]+43,597,'$'+c[1],{f:6,s:13,c:on?CR:MD,w:86,a:'c',np:1})}).join('');
+    var soon=function(x,y,w,h,s){return box(x,y,w,h,{bg:'#e0dbd0',r:h/2,in:tx(w/2,(h-s*1.5)/2,'Soon',{f:5,s:s,c:MU,w:w,a:'c'})})};
+    var car=box(0,309,390,124,{clip:1,in:
+      box(133,0,124,124,{bg:IN,r:28.8,clip:1,in:box(19.9,18.8,44.3,44.3,{in:BTC})+tx(19.9,66.4,'Bitcoin',{f:6,s:16.6,c:CR})+box(19.9,90.8,73,24.4,{bg:CR,r:12.2,in:tx(36.5,5,'Selected',{f:6,s:10,w:0}).replace('left:36.5px','left:0;width:73px;text-align:center')})})
+      +carCard(267,14,96,CR,'0 5px 14px -2px rgba(0,0,0,.1)',box(13.7,11.1,44.6,44.6,{bg:'#3E5A75',r:22.3})+box(22.3,18.9,27.4,27.4,{in:ETHG})+tx(13.7,57.4,'Ethereum',{f:6,s:11.1,c:MD})+soon(13.7,73.7,44.6,18.9,7.7))
+      +carCard(373,26,72,CR,'0 4px 10px -1px rgba(0,0,0,.1)',box(10.3,8.4,33.4,33.4,{bg:'rgba(232,200,110,.35)',r:17})+box(16.7,14.1,20.6,20.6,{bg:'#D4AF37',r:11})+tx(10.3,43.1,'Gold',{f:6,s:8.4,c:MD})+soon(10.3,55.3,33.4,14.1,5.8))
+      +carCard(27,14,96,CR,'0 5px 14px -2px rgba(0,0,0,.1)',box(13.7,11.1,44.6,44.6,{bg:'#E1E4E8',r:22.3})+tx(13.7,57.4,'XRP',{f:6,s:11.1,c:MD})+soon(13.7,73.7,44.6,18.9,7.7)+box(22.3,18.9,27.4,27.4,{in:XRPG}))
+      +carCard(-55,26,72,CR,'0 4px 10px -1px rgba(0,0,0,.1)',box(10.3,8.4,33.4,33.4,{bg:'#e6e0f0',r:17})+tx(10.3,43.1,'Solana',{f:6,s:8.4,c:MD})+soon(10.3,55.3,33.4,14.1,5.8))});
+    return {h:844,html:logo()+prog(1)+head('HOW MUCH','BITCOIN?',50,320)+sub('You see dollars. Jamie receives bitcoin.',320)
+      +tx(28,447,'Other assets coming later · Bitcoin only for now',{s:11,c:MU})+car
+      +tx(195,84,'SEND A GIFT',{f:7,s:10,ls:1.4,w:160,a:'c'})+tx(364,84,'STEP 01 / 04',{f:5,s:10,ls:1.4,w:160,a:'r'})
+      +box(28,484,334,150,{bg:CR,r:26,sh:SH1,led:1})+box(54,514,38,38,{in:BTC})
+      +tx(104,509.9,'$'+state.amt,{f:6,s:36,lh:44,w:232})+tx(106,558,AMT[state.amt].btc+' BTC',{s:12,c:MU,w:200})+chips
+      +tx(28,650,'Minimum $50  ·  Maximum $10,000',{s:11,op:.65,w:334})+cta(716,'Continue','next')+menu()}}
+  function fieldBox(x,y,w,hc,txt,ph,okb){return box(x,y,w,46,{bg:FD,r:14,b:okb?'#3f7d58':null})+'<div class="t" contenteditable="true" spellcheck="false" style="left:'+(x+16)+'px;top:'+(y+11)+'px;width:'+(w-26)+'px;font-size:16px;color:'+IN+';white-space:nowrap;overflow:hidden">'+txt+'</div>'}
+  function s02(){
+    return {h:1176,html:logo()+prog(2)+head('WHO IS THE','LUCKY PERSON?',48,330)+sub("They don't need a wallet, just an email.")+hrow(2)+strip()
+      +box(28,400,334,198,{bg:CR,r:24,sh:SH1,led:1})
+      +tx(52,426,'RECIPIENT NAME',{f:5,s:10,ls:1.2,c:MU,w:286})+fieldBox(52,446,286,0,'Jamie')
+      +tx(52,508,'RECIPIENT EMAIL',{f:5,s:10,ls:1.2,c:MU,w:286})+fieldBox(52,528,286,0,'jamie.okafor@gmail.com',0,1)
+      +box(28,613.9,334,346,{bg:CR,r:24,sh:SH1,led:1})
+      +tx(52,640,'YOUR NAME',{f:5,s:10,ls:1.2,c:MU,w:286})
+      +box(284,636,57,20,{bg:IN,r:9,in:tx(7,3,'CO-003',{f:5,s:9,ls:1.2,c:'#ffd000'})})
+      +fieldBox(52,660,286,0,'Chip')
+      +tx(52,712,'Use the name Jamie knows you by: your full name, or what Jamie calls you, like “Uncle Tom.”',{s:11,c:MU,w:286,wrap:1})
+      +tx(52,764,'YOUR EMAIL',{f:5,s:10,ls:1.2,c:MU,w:200})+tx(285,766,'OPTIONAL',{f:5,s:9,ls:1.2,c:MD})
+      +fieldBox(52,784,286,0,'chip@gmail.com',0,1)
+      +box(52,846,18,18,{in:CHK})+tx(80,846,'Email me about my gifts',{s:12})
+      +box(52,874,18,18,{r:5,b:IN})+tx(80,874,'Send me news from Gifty',{s:12})
+      +tx(52,904,'Used for all your gifts until you change or clear it. Never shown to a recipient.',{s:11,c:MU,w:286,wrap:1})
+      +cta(992,'Continue','next')
+      +tx(195,1067,'Sending to a team? Send multiple gifts →',{f:6,s:14,w:334,a:'c',u:1})+menu()}}
+  function s03(){
+    var chips=[['Just because',0,125],['Birthday',135,93],['Graduation',238,112],['Wedding',360,96],['Holiday',466,87],['Christmas',563,106]].map(function(c){var on=state.occName===c[0];
+      return '<div style="left:'+c[1]+'px;top:4px;width:'+c[2]+'px;height:44px;border-radius:22px;background:'+(on?IN:CR)+';'+(on?'':'box-shadow:'+SH2+';')+'cursor:pointer" data-act="occ" data-v="'+c[0]+'"></div>'
+        +'<div class="t" style="left:'+c[1]+'px;top:16px;width:'+c[2]+'px;text-align:center;font-weight:600;font-size:13px;color:'+(on?CR:MD)+';pointer-events:none">'+c[0]+'</div>'}).join('');
+    return {h:900,html:logo()+prog(3)+head('PERSONALIZE','YOUR GIFT',50,330)+sub('Make it memorable.')+hrow(3)+strip()
+      +tx(28,400,'OCCASION',{f:5,s:10,ls:1.2,w:200})
+      +'<div class="cs" id="cs" style="left:28px;top:418px;width:362px;height:52px"><div style="position:relative;left:0;top:0;width:680px;height:52px">'+chips+'</div></div>'
+      +box(28,482,334,128,{bg:CR,r:24,sh:SH1,led:1})+tx(52,508,'MESSAGE',{f:5,s:10,ls:1.2,c:MU,w:286})
+      +'<div class="t w" contenteditable="true" spellcheck="false" style="left:52px;top:532px;width:286px;font-size:16px;line-height:24px;height:72px;overflow:hidden">Happy birthday, Jamie! Hope this one kicks off something big.</div>'
+      +tx(28,618,'Jamie reads this in the gift email. It isn’t encrypted, so write it as you would a postcard.',{s:11,c:MU,w:334,wrap:1})
+      +cta(772,'Continue','next')+menu()}}
+  function s04(){var A=AMT[state.amt];
+    var rows=[['Asset','Bitcoin',339],['Amount','$'+state.amt+'  ·  '+A.sat+' sat',383],['To','Jamie · jamie.okafor@gmail.com',427],['Occasion',state.occName,471],['Processing fee',A.fee,515],['Network fees',A.net,563],['You send',A.tot,611]];
+    var h=rows.map(function(r){return tx(52,r[2],r[0],{f:r[0]==='You send'?6:4,s:13,c:MU,w:130})+tx(338,r[0]==='To'?r[2]+1:r[2],r[1],{f:6,s:r[0]==='To'?11:13,w:r[0]==='To'?206:168,a:'r'})}).join('');
+    var dv=[369,413,457,501,549,597,645].map(function(y){return box(52,y,286,1,{bg:DV})}).join('');
+    return {h:972,html:logo()+prog(4)+head('REVIEW','YOUR GIFT',50,330)+sub('Last look before you fund it.')+hrow(4)
+      +box(28,311,334,363,{bg:CR,r:24,sh:SH1,led:1})+h+dv
+      +box(28,689,18,18,{in:CHK})
+      +tx(56,690,'I agree to Gifty\'s <u>Terms</u> and <u>Privacy Policy</u>.',{s:12})
+      +box(28,726,18,18,{in:CHK})+tx(56,725,'I ask Gifty to email this gift link, including my message, to Jamie on my behalf.',{s:12,w:306,wrap:1})
+      +cta(784,'Send this gift through Gifty','next')
+      +box(28,852,334,56,{r:28,b:IN,led:1,attr:'data-act="next"'})+tx(195,869,'Send this gift myself',{f:6,s:16,w:334,a:'c',np:1})+menu()}}
+  var IC={
+    warn:'<svg viewBox="0 0 22 22" width="100%" height="100%"><path d="M12 2.25C10.0716 2.25 8.18657 2.82183 6.58319 3.89317C4.97982 4.96452 3.73013 6.48726 2.99218 8.26884C2.25422 10.0504 2.06114 12.0108 2.43735 13.9021C2.81355 15.7934 3.74215 17.5307 5.10571 18.8943C6.46928 20.2579 8.20656 21.1865 10.0979 21.5627C11.9892 21.9389 13.9496 21.7458 15.7312 21.0078C17.5127 20.2699 19.0355 19.0202 20.1068 17.4168C21.1782 15.8134 21.75 13.9284 21.75 12C21.7473 9.41498 20.7192 6.93661 18.8913 5.10872C17.0634 3.28084 14.585 2.25273 12 2.25ZM12 20.25C10.3683 20.25 8.77326 19.7661 7.41655 18.8596C6.05984 17.9531 5.00242 16.6646 4.378 15.1571C3.75358 13.6496 3.5902 11.9908 3.90853 10.3905C4.22685 8.79016 5.01259 7.32015 6.16637 6.16637C7.32016 5.01259 8.79017 4.22685 10.3905 3.90852C11.9909 3.59019 13.6497 3.75357 15.1571 4.37799C16.6646 5.00242 17.9531 6.05984 18.8596 7.41655C19.7662 8.77325 20.25 10.3683 20.25 12C20.2475 14.1873 19.3775 16.2843 17.8309 17.8309C16.2843 19.3775 14.1873 20.2475 12 20.25ZM11.25 12.75V7.5C11.25 7.30109 11.329 7.11032 11.4697 6.96967C11.6103 6.82902 11.8011 6.75 12 6.75C12.1989 6.75 12.3897 6.82902 12.5303 6.96967C12.671 7.11032 12.75 7.30109 12.75 7.5V12.75C12.75 12.9489 12.671 13.1397 12.5303 13.2803C12.3897 13.421 12.1989 13.5 12 13.5C11.8011 13.5 11.6103 13.421 11.4697 13.2803C11.329 13.1397 11.25 12.9489 11.25 12.75ZM13.125 16.125C13.125 16.3475 13.059 16.565 12.9354 16.75C12.8118 16.935 12.6361 17.0792 12.4305 17.1644C12.225 17.2495 11.9988 17.2718 11.7805 17.2284C11.5623 17.185 11.3618 17.0778 11.2045 16.9205C11.0472 16.7632 10.94 16.5627 10.8966 16.3445C10.8532 16.1262 10.8755 15.9 10.9606 15.6945C11.0458 15.4889 11.19 15.3132 11.375 15.1896C11.56 15.066 11.7775 15 12 15C12.2984 15 12.5845 15.1185 12.7955 15.3295C13.0065 15.5405 13.125 15.8266 13.125 16.125Z" fill="#0A0A0A"/></svg>',
+    arr:'<svg viewBox="0 0 21 20" width="100%" height="100%"><path d="M20.7806 12.5306L14.0306 19.2806C13.8899 19.4213 13.699 19.5003 13.5 19.5003C13.301 19.5003 13.1101 19.4213 12.9694 19.2806C12.8286 19.1398 12.7496 18.949 12.7496 18.7499C12.7496 18.5509 12.8286 18.36 12.9694 18.2193L18.4397 12.7499H3.75C3.55109 12.7499 3.36032 12.6709 3.21967 12.5303C3.07902 12.3896 3 12.1988 3 11.9999C3 11.801 3.07902 11.6103 3.21967 11.4696C3.36032 11.3289 3.55109 11.2499 3.75 11.2499H18.4397L12.9694 5.78055C12.8286 5.63982 12.7496 5.44895 12.7496 5.24993C12.7496 5.05091 12.8286 4.86003 12.9694 4.7193C13.1101 4.57857 13.301 4.49951 13.5 4.49951C13.699 4.49951 13.8899 4.57857 14.0306 4.7193L20.7806 11.4693C20.8504 11.539 20.9057 11.6217 20.9434 11.7127C20.9812 11.8038 21.0006 11.9014 21.0006 11.9999C21.0006 12.0985 20.9812 12.1961 20.9434 12.2871C20.9057 12.3782 20.8504 12.4609 20.7806 12.5306Z" fill="#0A0A0A"/></svg>',
+    qr:'<svg viewBox="0 0 21 21" width="100%" height="100%"><path d="M9.75 3.75H5.25C4.85218 3.75 4.47064 3.90804 4.18934 4.18934C3.90804 4.47064 3.75 4.85218 3.75 5.25V9.75C3.75 10.1478 3.90804 10.5294 4.18934 10.8107C4.47064 11.092 4.85218 11.25 5.25 11.25H9.75C10.1478 11.25 10.5294 11.092 10.8107 10.8107C11.092 10.5294 11.25 10.1478 11.25 9.75V5.25C11.25 4.85218 11.092 4.47064 10.8107 4.18934C10.5294 3.90804 10.1478 3.75 9.75 3.75ZM9.75 9.75H5.25V5.25H9.75V9.75ZM9.75 12.75H5.25C4.85218 12.75 4.47064 12.908 4.18934 13.1893C3.90804 13.4706 3.75 13.8522 3.75 14.25V18.75C3.75 19.1478 3.90804 19.5294 4.18934 19.8107C4.47064 20.092 4.85218 20.25 5.25 20.25H9.75C10.1478 20.25 10.5294 20.092 10.8107 19.8107C11.092 19.5294 11.25 19.1478 11.25 18.75V14.25C11.25 13.8522 11.092 13.4706 10.8107 13.1893C10.5294 12.908 10.1478 12.75 9.75 12.75ZM9.75 18.75H5.25V14.25H9.75V18.75ZM18.75 3.75H14.25C13.8522 3.75 13.4706 3.90804 13.1893 4.18934C12.908 4.47064 12.75 4.85218 12.75 5.25V9.75C12.75 10.1478 12.908 10.5294 13.1893 10.8107C13.4706 11.092 13.8522 11.25 14.25 11.25H18.75C19.1478 11.25 19.5294 11.092 19.8107 10.8107C20.092 10.5294 20.25 10.1478 20.25 9.75V5.25C20.25 4.85218 20.092 4.47064 19.8107 4.18934C19.5294 3.90804 19.1478 3.75 18.75 3.75ZM18.75 9.75H14.25V5.25H18.75V9.75ZM12.75 16.5V13.5C12.75 13.3011 12.829 13.1103 12.9697 12.9697C13.1103 12.829 13.3011 12.75 13.5 12.75C13.6989 12.75 13.8897 12.829 14.0303 12.9697C14.171 13.1103 14.25 13.3011 14.25 13.5V16.5C14.25 16.6989 14.171 16.8897 14.0303 17.0303C13.8897 17.171 13.6989 17.25 13.5 17.25C13.3011 17.25 13.1103 17.171 12.9697 17.0303C12.829 16.8897 12.75 16.6989 12.75 16.5ZM20.25 15C20.25 15.1989 20.171 15.3897 20.0303 15.5303C19.8897 15.671 19.6989 15.75 19.5 15.75H17.25V19.5C17.25 19.6989 17.171 19.8897 17.0303 20.0303C16.8897 20.171 16.6989 20.25 16.5 20.25H13.5C13.3011 20.25 13.1103 20.171 12.9697 20.0303C12.829 19.8897 12.75 19.6989 12.75 19.5C12.75 19.3011 12.829 19.1103 12.9697 18.9697C13.1103 18.829 13.3011 18.75 13.5 18.75H15.75V13.5C15.75 13.3011 15.829 13.1103 15.9697 12.9697C16.1103 12.829 16.3011 12.75 16.5 12.75C16.6989 12.75 16.8897 12.829 17.0303 12.9697C17.171 13.1103 17.25 13.3011 17.25 13.5V14.25H19.5C19.6989 14.25 19.8897 14.329 20.0303 14.4697C20.171 14.6103 20.25 14.8011 20.25 15ZM20.25 18V19.5C20.25 19.6989 20.171 19.8897 20.0303 20.0303C19.8897 20.171 19.6989 20.25 19.5 20.25C19.3011 20.25 19.1103 20.171 18.9697 20.0303C18.829 19.8897 18.75 19.6989 18.75 19.5V18C18.75 17.8011 18.829 17.6103 18.9697 17.4697C19.1103 17.329 19.3011 17.25 19.5 17.25C19.6989 17.25 19.8897 17.329 20.0303 17.4697C20.171 17.6103 20.25 17.8011 20.25 18Z" fill="#0A0A0A"/></svg>',
+    ok:'<svg viewBox="0 0 22 22" width="100%" height="100%"><path d="M16.2806 9.21937C16.3504 9.28903 16.4057 9.37175 16.4434 9.46279C16.4812 9.55384 16.5006 9.65144 16.5006 9.75C16.5006 9.84856 16.4812 9.94616 16.4434 10.0372C16.4057 10.1283 16.3504 10.211 16.2806 10.2806L11.0306 15.5306C10.961 15.6004 10.8783 15.6557 10.7872 15.6934C10.6962 15.7312 10.5986 15.7506 10.5 15.7506C10.4014 15.7506 10.3038 15.7312 10.2128 15.6934C10.1218 15.6557 10.039 15.6004 9.96938 15.5306L7.71938 13.2806C7.57865 13.1399 7.49959 12.949 7.49959 12.75C7.49959 12.551 7.57865 12.3601 7.71938 12.2194C7.86011 12.0786 8.05098 11.9996 8.25 11.9996C8.44903 11.9996 8.6399 12.0786 8.78063 12.2194L10.5 13.9397L15.2194 9.21937C15.289 9.14964 15.3718 9.09432 15.4628 9.05658C15.5538 9.01884 15.6514 8.99941 15.75 8.99941C15.8486 8.99941 15.9462 9.01884 16.0372 9.05658C16.1283 9.09432 16.211 9.14964 16.2806 9.21937ZM21.75 12C21.75 13.9284 21.1782 15.8134 20.1068 17.4168C19.0355 19.0202 17.5127 20.2699 15.7312 21.0078C13.9496 21.7458 11.9892 21.9389 10.0979 21.5627C8.20656 21.1865 6.46928 20.2579 5.10571 18.8943C3.74215 17.5307 2.81355 15.7934 2.43735 13.9021C2.06114 12.0108 2.25422 10.0504 2.99218 8.26884C3.73013 6.48726 4.97982 4.96452 6.58319 3.89317C8.18657 2.82183 10.0716 2.25 12 2.25C14.585 2.25273 17.0634 3.28084 18.8913 5.10872C20.7192 6.93661 21.7473 9.41498 21.75 12ZM20.25 12C20.25 10.3683 19.7662 8.77325 18.8596 7.41655C17.9531 6.05984 16.6646 5.00242 15.1571 4.37799C13.6497 3.75357 11.9909 3.59019 10.3905 3.90852C8.79017 4.22685 7.32016 5.01259 6.16637 6.16637C5.01259 7.32015 4.22685 8.79016 3.90853 10.3905C3.5902 11.9908 3.75358 13.6496 4.378 15.1571C5.00242 16.6646 6.05984 17.9531 7.41655 18.8596C8.77326 19.7661 10.3683 20.25 12 20.25C14.1873 20.2475 16.2843 19.3775 17.8309 17.8309C19.3775 16.2843 20.2475 14.1873 20.25 12Z" fill="#3F7D58"/></svg>',
+    clk:'<svg viewBox="0 0 22 22" width="100%" height="100%"><path d="M12 2.25C10.0716 2.25 8.18657 2.82183 6.58319 3.89317C4.97982 4.96452 3.73013 6.48726 2.99218 8.26884C2.25422 10.0504 2.06114 12.0108 2.43735 13.9021C2.81355 15.7934 3.74215 17.5307 5.10571 18.8943C6.46928 20.2579 8.20656 21.1865 10.0979 21.5627C11.9892 21.9389 13.9496 21.7458 15.7312 21.0078C17.5127 20.2699 19.0355 19.0202 20.1068 17.4168C21.1782 15.8134 21.75 13.9284 21.75 12C21.7473 9.41498 20.7192 6.93661 18.8913 5.10872C17.0634 3.28084 14.585 2.25273 12 2.25ZM12 20.25C10.3683 20.25 8.77326 19.7661 7.41655 18.8596C6.05984 17.9531 5.00242 16.6646 4.378 15.1571C3.75358 13.6496 3.5902 11.9908 3.90853 10.3905C4.22685 8.79016 5.01259 7.32015 6.16637 6.16637C7.32016 5.01259 8.79017 4.22685 10.3905 3.90852C11.9909 3.59019 13.6497 3.75357 15.1571 4.37799C16.6646 5.00242 17.9531 6.05984 18.8596 7.41655C19.7662 8.77325 20.25 10.3683 20.25 12C20.2475 14.1873 19.3775 16.2843 17.8309 17.8309C16.2843 19.3775 14.1873 20.2475 12 20.25ZM18 12C18 12.1989 17.921 12.3897 17.7803 12.5303C17.6397 12.671 17.4489 12.75 17.25 12.75H12C11.8011 12.75 11.6103 12.671 11.4697 12.5303C11.329 12.3897 11.25 12.1989 11.25 12V6.75C11.25 6.55109 11.329 6.36032 11.4697 6.21967C11.6103 6.07902 11.8011 6 12 6C12.1989 6 12.3897 6.07902 12.5303 6.21967C12.671 6.36032 12.75 6.55109 12.75 6.75V11.25H17.25C17.4489 11.25 17.6397 11.329 17.7803 11.4697C17.921 11.6103 18 11.8011 18 12Z" fill="#141210"/></svg>'};
+  function mono(x,y,w,lines){return '<div class="t" style="left:'+x+'px;top:'+y+'px;width:'+w+'px;font-family:\'JetBrains Mono\',monospace;font-weight:500;font-size:13px;line-height:22px;color:'+IN+'">'+lines.join('<br>')+'</div>'}
+  function s05(){
+    var item=function(y,n,t,b){return box(52,y,28,28,{bg:IN,r:14})+tx(66,y+5,n,{f:6,s:13,c:CR,w:28,a:'c'})+tx(92,y+2,t,{f:6,s:14,w:246})+tx(92,y+24,b,{s:12,c:MU,w:246,lh:17,wrap:1})};
+    return {h:844,html:logo()+hrow(0,'FUND THIS GIFT','')+head('SEND YOUR','GIFT.',50,334).replace('top:146px','top:128px')
+      +box(28,260,334,224,{bg:CR,r:24,sh:SH1,led:1})
+      +item(288,'1','Create an Internet Identity',"Your device's passkey (Face ID, fingerprint or PIN) makes one in seconds. It's how you'll access your gift dashboard later.")
+      +item(388,'2','Pay from any bitcoin wallet',"We'll show an address and the exact amount. Send it from a wallet on this phone or scan from another device.")
+      +cta(716,'Continue','next')+menu()}}
+  function s06(){
+    var row=function(y,l,v,vy){return tx(52,y,l,{f:5,s:10,ls:1.2,c:MU,w:160})+tx(338,vy,v,{f:6,s:13,w:160,a:'r'})};
+    var pill=function(x,w,label){return box(x,500,w,44,{bg:CR,r:22,sh:SH2,led:1,attr:'data-act="copy"'})+tx(x+w/2,515,label,{f:6,s:10,ls:1.2,w:w,a:'c',np:1})};
+    return {h:844,html:logo()+hrow(0,'FUND THIS GIFT','')
+      +tx(28,128,'WAITING FOR YOUR BITCOIN',{f:5,s:10,ls:1.4,w:334})+tx(28,148,'126,620 sat',{f:6,s:38,lh:46,w:334})
+      +tx(28,200,'Send exactly this: 0.00126620 BTC ≈ $105. Bitcoin only.',{s:12,w:334,wrap:1})
+      +tx(28,222,'A short send holds the gift email until you top up.',{s:11,lh:17,op:.65,w:334,wrap:1})
+      +box(28,244,334,116,{bg:CR,r:24,sh:SH1,led:1})+row(268,'GIFT TO JAMIE','120,500 sat',264)+box(52,288,286,1,{bg:DV})
+      +row(302,'PROCESSING FEE','6,000 sat',298)+box(52,322,286,1,{bg:DV})+row(336,'DEPOSIT FEES','120 sat',332)
+      +box(28,376,334,104,{bg:CR,r:24,sh:SH1,led:1})+tx(52,400,'DEPOSIT ADDRESS',{f:5,s:10,ls:1.2,c:MU,w:286})
+      +mono(52,422,286,['bc1q 8f2k 9x0v 4mzp 7wq3','h5rt e2ly n6cu d8sa jk4t'])
+      +pill(28,135,'COPY ADDRESS')+pill(173,135,'COPY AMOUNT')
+      +box(318,500,44,44,{bg:CR,r:22,sh:SH2,led:1})+box(330,512,20,20,{in:IC.qr})
+      +box(28,556,334,64,{bg:'#efe9dc',r:24,led:1,attr:'data-act="next"'})+tx(52,574,'Pay from Your Balance',{f:6,s:13,w:254,np:1})+tx(52,592,'126,520 sat + 10 sat fee. Settles in seconds.',{s:11,c:MU,w:254,np:1})+box(318,578,20,20,{in:IC.arr})
+      +box(28,640,334,72,{bg:'#efe9dc',r:24,clip:1,led:1,in:box(24,18,20,20,{in:IC.warn})+tx(56,12,'Bitcoin only, exact amount. A dust-sized send under 100 sat never converts and cannot be recovered.',{s:11,lh:17,c:MU,w:254,wrap:1})})
+      +cta(716,'Pay with a Bitcoin app','next').replace('font-size:16px','font-size:15px')+menu()}}
+  function s07(){
+    var share=function(cx,t,lbl,fs){return box(cx-24,729,48,48,{bg:IN,r:24,in:tx(0,0,t,{f:7,s:fs||16,c:'#fff',w:48,a:'c'}).replace('top:0px','top:0;line-height:48px;height:48px')})+tx(cx,783,lbl,{f:5,s:10,w:80,a:'c'})};
+    return {h:1031,html:logo()+menu()+box(308,112,57,20,{bg:IN,r:9,in:tx(7,3,'CO-003',{f:5,s:9,ls:1.2,c:'#ffd000'})})
+      +head('ON ITS','WAY.',50,334).replace('top:146px','top:96px')
+      +tx(28,208,'We’re wrapping your gift and sending it to Jamie. This can take about an hour, so feel free to close this page. We’ll email you when it lands, and again when Jamie opens it.',{s:14,lh:21,w:334,wrap:1})
+      +strip().replace('top:312px','top:309px')
+      +box(28,397,334,217,{bg:CR,r:24,sh:SH1,led:1})
+      +box(52,424,22,22,{in:IC.ok})+tx(84,423,'Seen on the network',{f:6,s:14,w:254})+tx(84,443,'126,620 sat from your balance, 2 min ago',{s:11,c:MU,w:254})
+      +box(52,469,286,1,{bg:DV})
+      +box(52,488,22,22,{in:IC.clk})+tx(84,487,'Confirming and converting',{f:6,s:14,w:254})+tx(84,507,'Confirming · 1 of 4',{s:11,c:MU,w:254})
+      +box(52,533,286,1,{bg:DV})
+      +box(52,552,20,20,{r:10,b:MU,op:.5})+tx(84,551,'Gift email sent to Jamie',{f:6,s:14,w:254})+tx(84,571,'Sent the moment it lands.',{s:11,c:MU,w:254})
+      +box(28,630,334,249,{bg:CR,r:16,sh:SH1,led:1})
+      +tx(48,648,'SPREAD THE WORD',{f:5,s:10,w:294,op:.6})+tx(48,675,'Tell your friends how easy it is to gift Bitcoin with Gifty.',{f:6,s:14,w:294,wrap:1})
+      +share(72,'X','X')+share(153,'f','Facebook')+share(236,'IG','Instagram')+share(318,'•••','More',12)
+      +tx(48,810,'Opens a ready-to-post note you can edit: “I just gifted Bitcoin with Gifty. All it took was an email address.” No names or amounts.',{s:11,w:294,wrap:1,op:.6})
+      +cta(903,'View your gifts','toR')}}
+  function r02c(){
+    return {h:844,html:logo()+menu()
+      +'<div class="hl" style="left:28px;top:120px;width:334px;font-size:50px;line-height:.92;white-space:normal">WELCOME BACK, JAMIE.</div>'
+      +tx(28,232,'Sign in with Apple, and tap Share My Email when asked. Hide My Email can’t open this gift.',{s:14,lh:20.3,w:320,wrap:1})
+      +box(28,316,334,125,{bg:CR,r:26,sh:SH2,led:1})+tx(50,338,'LAST TIME YOU USED',{f:5,s:10,ls:1.4,c:MD})+tx(50,359,'Apple',{f:6,s:22})+tx(50,398,'Tap Share My Email when Apple asks',{s:14,c:MD})
+      +box(28,457,334,65,{bg:IN,r:20,led:1})+tx(46,471,'Signing in a different way creates a separate, empty wallet. Your gift won’t be there.',{s:12,c:CR,w:298,wrap:1})
+      +cta(716,'Continue with Apple','next')
+      +tx(195,784,'Not you, or used something else? Choose another way',{s:11,lh:15.4,c:MD,w:310,a:'c',wrap:1})}}
+  function r08(){
+    var seg=function(l,w,a){return ''};
+    var tile=function(){return box(14,14,52,52,{bg:'#f1ebdf',r:15,clip:1,in:box(13,13,26,26,{in:BTC})})};
+    var pill=function(x,y,label,bg,col,bd,w){return box(x,y,w||70,22,{bg:bg,r:11,b:null,in:tx(0,4,label,{f:6,s:9,ls:1,c:col,w:w||70,a:'c'}).replace('left:0px','left:0')}).replace('border-radius:11px;','border-radius:11px;'+(bd?'border:1px solid '+bd+';':''))};
+    var bars=function(x,y,wd,n,tot,seg2,gap){var o='';for(var i=0;i<tot;i++)o+=box(x+i*gap,y,seg2,6,{bg:i<n?'#3f7d58':DV,r:3});return o};
+    var row=function(y,name,subt,pl,btn,bar,cnt){return box(16,y,302,84,{bg:'#fff',r:16,sh:'0 8px 10px rgba(20,18,15,.14),0 1px 1px rgba(20,18,15,.1)',in:tile()+tx(86,12,name,{f:6,s:14})+tx(86,32,subt,{s:11,c:MU})+pl+(btn||'')+bar+(cnt||'')})};
+    var lifted=box(13.7,133.4,306.5,85.3,{bg:'#fff',r:16.2,sh:'0 18px 18px rgba(20,18,15,.22),0 2px 2px rgba(20,18,15,.12)',in:tile()+tx(87.3,12.2,'Priya · $250',{f:6,s:14.2})+tx(87.3,32.5,'Wedding · all lessons done',{s:11.2,c:MU})
+      +box(216.7,12.2,70,22.3,{bg:IN,r:11.2,in:tx(0,4.5,'OPENED',{f:6,s:9.1,ls:1,c:CR,w:70,a:'c'}).replace('left:0px','left:0')})
+      +box(87.3,56.8,142.1,22.3,{bg:IN,r:11.2,sh:'0 8px 9px rgba(20,18,15,.22)',attr:'data-act="next"',in:tx(0,4,'CLAIM',{f:6,s:9.1,ls:1,c:CR,w:142.1,a:'c',np:1}).replace('left:0px','left:0')})
+      +box(239.5,65,13.5,6.1,{bg:'#3f7d58',r:3})+box(259.2,65,13.5,6.1,{bg:'#3f7d58',r:3})+box(278.8,65,13.5,6.1,{bg:'#3f7d58',r:3})});
+    var pl0=function(x,label,bg,col,bd){return box(x,12,label==='CLAIMED'?78:70,22,{bg:bg,r:11,in:tx(0,4,label,{f:6,s:9,ls:1,c:col,w:label==='CLAIMED'?78:70,a:'c'}).replace('left:0px','left:0')}).replace('border-radius:11px;','border-radius:11px;'+(bd?'border:1px solid '+bd+';':''))};
+    var filt=[['All',0,36,1],['Opened',44,67],['Sealed',119,61],['Claimed',188,70],['Expired',266,63],['Needs action',337,92]].map(function(f){return box(f[1],0,f[2],28,{bg:f[3]?IN:'#efe9dc',r:14,in:tx(0,6.5,f[0],{f:5,s:11,c:f[3]?CR:IN,w:f[2],a:'c'}).replace('left:0px','left:0')})}).join('');
+    var ledger=box(28,180,334,500,{bg:'#f1ebdf',r:24,sh:'0 10px 28px 0 rgba(0,0,0,.14)',clip:1,led:1,in:
+      box(16,16,302,40,{bg:'#efe9dc',r:20,in:tx(77,8,'Sent · 4',{f:5,s:12,c:MU,w:148,a:'c'})+box(151,3,148,34,{bg:IN,r:17,in:tx(0,8,'Received · 4',{f:6,s:12,c:CR,w:148,a:'c'}).replace('left:0px','left:0')})})
+      +box(16,68,318,28,{clip:1,in:filt})
+      +tx(16,110,'SORT · NEWEST FIRST',{f:5,s:10,ls:1.4})+'<div style="left:140px;top:112px;width:7px;height:7px;border-right:1.5px solid '+IN+';border-bottom:1.5px solid '+IN+';transform:rotate(45deg)"></div>'
+      +lifted
+      +row(228,'Dad · $75','Graduation · opened Sep 22',pl0(216,'OPENED',IN,CR),box(86,56,140,22,{r:11,b:IN,in:tx(0,2.5,'CONTINUE LESSONS',{f:6,s:9,ls:1,w:140,a:'c'}).replace('left:0px','left:0')}),bars(236,64,0,1,3,13.3,19.3))
+      +row(318,'Maya · $500','Claimable from Jun 12, 2036',pl0(216,'SEALED','#efe9dc',MU),'',bars(86,64,0,2,3,46,52),tx(261,59,'2 of 3',{s:10,c:MU}))
+      +row(408,'Chip · $100','Birthday · claimed Sep 10',pl0(208,'CLAIMED',CR,'#3f7d58','#3f7d58'),'',bars(86,64,0,3,3,46,52),tx(261,59,'3 of 3',{s:10,c:MU}))});
+    return {h:844,html:logo()+menu()+'<div class="hl" style="left:28px;top:96px;font-size:50px">YOUR GIFTS.</div>'
+      +tx(28,152,'4 RECEIVED · $925 · 0.01114 BTC',{f:5,s:10,ls:1.4})+ledger+cta(716,'Send another gift','restart')}}
+  var FL={send:[['S01b',s01b],['S02',s02],['S03',s03],['S04',s04],['S05',s05],['S06',s06],['S07',s07]],recv:[['R02c',r02c],['R08',r08]]};
+
+  /* ---------- render + scaling ---------- */
+  var phone=document.getElementById('phone'),scr=document.getElementById('scr'),stepsEl=document.getElementById('steps');
+  var W=390,H=844,SC=1;
+  function fit(){SC=Math.min(1,phone.parentNode.clientWidth/390);if(!SC||SC<.3)SC=1;scr.style.transform='scale('+SC+')';phone.style.width=(390*SC)+'px';phone.style.height=(H*SC)+'px';sizeCanvas()}
+  function render(){ledges=[];var s=FL[state.flow][state.step][1]();H=s.h;scr.style.height=H+'px';scr.innerHTML=s.html;
+    [].forEach.call(document.querySelectorAll('#flows button'),function(b){b.setAttribute('aria-pressed',b.dataset.f===state.flow)});
+    stepsEl.innerHTML=FL[state.flow].map(function(x,i){return '<button data-step="'+i+'" '+(i===state.step?'aria-current="true"':'')+'>'+x[0]+'</button>'}).join('');fit()}
+  scr.addEventListener('click',function(e){var a=e.target.closest('[data-act]');if(!a)return;var k=a.dataset.act;
+    if(k==='next'&&state.step<FL[state.flow].length-1){state.step++;render();burst(10)}
+    else if(k==='back'&&state.step>0){state.step--;render()}
+    else if(k==='amt'){state.amt=+a.dataset.v;render();burst(6)}
+    else if(k==='occ'){state.occName=a.dataset.v;var m={'Just because':'because','Birthday':'birthday','Graduation':'graduation','Wedding':'wedding','Holiday':'holiday','Christmas':'christmas'}[a.dataset.v];var cs=document.getElementById('cs'),sl=cs?cs.scrollLeft:0;render();var c2=document.getElementById('cs');if(c2)c2.scrollLeft=sl;setOcc(m,true)}
+    else if(k==='toR'){state.flow='recv';state.step=1;render();burst(30)}
+    else if(k==='restart'){state.flow='send';state.step=0;render()}
+    e.stopPropagation()});
+  document.getElementById('flows').addEventListener('click',function(e){var b=e.target.closest('[data-f]');if(!b)return;state.flow=b.dataset.f;state.step=0;render()});
+  stepsEl.addEventListener('click',function(e){var b=e.target.closest('[data-step]');if(b){state.step=+b.dataset.step;render()}});
+
+  /* ---------- physics ---------- */
+  var cv=document.getElementById('cv'),ctx=cv.getContext('2d'),dpr=Math.min(window.devicePixelRatio||1,1.5),perf=coarse?.55:1,acc=0,hidden=false;
+  function mk(w,fn){var c=document.createElement('canvas');c.width=c.height=w;fn(c.getContext('2d'),w);return c}
+  var sprSnow=mk(16,function(g,w){var r=g.createRadialGradient(8,8,0,8,8,8);r.addColorStop(0,'rgba(255,255,255,1)');r.addColorStop(.5,'rgba(255,255,255,.85)');r.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=r;g.fillRect(0,0,w,w)});
+  function bubSpr(k){return mk(96,function(g,w){var C=48,R=44;
+    var b=g.createRadialGradient(C-8,C-10,6,C,C,R);b.addColorStop(0,'rgba(255,255,255,.03)');b.addColorStop(.75,'rgba(255,255,255,.1)');b.addColorStop(1,'rgba(255,255,255,.3)');g.fillStyle=b;g.beginPath();g.arc(C,C,R,0,6.283);g.fill();
+    g.lineCap='round';
+    function band(a0,a1,rad,cols,wd,al){for(var i=0;i<3;i++){var gr=g.createLinearGradient(C+Math.cos(a0)*rad,C+Math.sin(a0)*rad,C+Math.cos(a1)*rad,C+Math.sin(a1)*rad);cols.forEach(function(c,j){gr.addColorStop(j/(cols.length-1),c)});g.globalAlpha=al*(i+1)/3;g.strokeStyle=gr;g.lineWidth=wd*(3-i)/3+1;g.beginPath();g.arc(C,C,rad,a0,a1);g.stroke()}g.globalAlpha=1}
+    /* single light source top-left: cool fringe near the light, warm fringe on the far lower-right rim */
+    band(3.55,4.55,R-4,['#7fd6ff','#b8a4ff','#ff9ad6'],7,.42*k);
+    band(.1,1.65,R-5,['#ffe36a','#ff9ad6','#7fd6ff'],9,.5*k);
+    band(.25,1.3,R-12,['#8fffb0','#ffe36a'],5,.22*k);
+    g.strokeStyle='rgba(255,255,255,.45)';g.lineWidth=1.3;g.beginPath();g.arc(C,C,R-.7,0,6.283);g.stroke();
+    g.strokeStyle='rgba(255,255,255,.9)';g.lineWidth=3.4;g.beginPath();g.arc(C,C,R-5,3.55,4.35);g.stroke();
+    g.fillStyle='rgba(255,255,255,.55)';g.beginPath();g.ellipse(C-19,C-17,5,8,-.7,0,6.283);g.fill();
+    g.strokeStyle='rgba(255,255,255,.3)';g.lineWidth=2;g.beginPath();g.arc(C,C,R-6,.35,.9);g.stroke()})}
+  var sprBubs=[.7,1].map(bubSpr);
+  function flowerSpr(c){return mk(48,function(g,w){g.translate(24,24);for(var i=0;i<5;i++){g.rotate(1.2566);g.fillStyle=c;g.strokeStyle='rgba(180,110,130,.35)';g.lineWidth=.8;g.beginPath();g.ellipse(0,-10,6.2,10,0,0,6.283);g.fill();g.stroke()}g.fillStyle='#f6c744';g.beginPath();g.arc(0,0,4.2,0,6.283);g.fill();g.fillStyle='rgba(160,90,20,.5)';g.beginPath();g.arc(1,1,1.4,0,6.283);g.fill()})}
+  var sprFl=['#ffffff','#ffd0dc','#ffb3c6','#f3e1ff'].map(flowerSpr);
+  function sizeCanvas(){cv.width=Math.round(390*SC*dpr);cv.height=Math.round(H*SC*dpr);ctx.setTransform(dpr*SC,0,0,dpr*SC,0,0)}
+  var P=[],tiltX=0,tiltY=0,whirl=0,paused=false,intensity=.55,tiltK=.6,sprayT=0,drag=false,lx=0,ly=0,ptx=0,pty=0,lastShake=0,lastAcc=0,blowLevel=0,blowHold=false,micOn=false;
+  var rnd=function(a,b){return a+Math.random()*(b-a)};
+  var COLS={birthday:['#ff4f8b','#ffb703','#4cc9f0','#7b5cff','#2ec4b6','#ff7a1a','#ffffff'],graduation:['#f2b705','#1c2a5e','#ffffff','#8c1c2b','#f2b705'],wedding:['#ffffff','#ffd9e2','#ffbfd0','#fff1d6','#ece0ff'],christmas:['#d62839','#1b8a4a','#ffffff','#f2c94c','#d62839'],holiday:['#ffffff','#cfe8ff','#9fd0ff','#f2c94c','#d9dde6'],because:['#ffffff']};
+  var ICE=['#ffffff','#e3f2ff','#b9dcff'],GLD=['#f2c94c','#ffffff','#d9dde6'];
+  function pick(){var c=COLS[state.occ]||COLS.because;return c[(Math.random()*c.length)|0]}
+  function pickA(a){return a[(Math.random()*a.length)|0]}
+  function spawn(kind,fromBottom){
+    var p={k:kind,x:rnd(0,390),y:fromBottom?H+rnd(0,40):rnd(-20,H),vx:0,vy:0,a:rnd(0,6.28),va:rnd(-2,2),ph:rnd(0,6.28),life:0,rest:0};
+    if(kind==='snow'){p.r=rnd(1.4,3.2);p.m=.3}
+    else if(kind==='confetti'){var q=Math.random();p.s=q<.4?'r':q<.78?'c':'q';p.r=p.s==='c'?rnd(5,9):rnd(6,10);p.c=pick();p.m=.5;p.va=rnd(-4,4)}
+    else if(kind==='grad'){p.s=Math.random()<.55?'sq':'cap';p.r=p.s==='cap'?rnd(8,12):rnd(6,9);p.c=pick();p.m=.5;p.va=rnd(-3,3)}
+    else if(kind==='streamer'){p.len=rnd(60,120);p.r=5;p.w=rnd(4,6.5);p.c=pick();p.m=.28;p.va=0}
+    else if(kind==='star'){p.r=rnd(6,10);p.c=pickA(['#f2b705','#ffd54a','#f2b705']);p.m=.45;p.va=rnd(-2,2)}
+    else if(kind==='spark'){p.r=rnd(4,8);p.c=state.occ==='wedding'?'#f2d27a':pickA(GLD);p.m=.16;p.va=0}
+    else if(kind==='ornament'){p.r=rnd(7,11);p.c=pick();p.m=.75;p.va=rnd(-1.2,1.2)}
+    else if(kind==='flake'){p.r=rnd(7,13);p.c=pickA(ICE);p.m=.26;p.va=rnd(-1,1)}
+    else if(kind==='petal'){p.r=rnd(5,9);p.c=pick();p.m=.2;p.va=rnd(-2.2,2.2)}
+    else if(kind==='flower'){p.r=rnd(8,13);p.v=(Math.random()*sprFl.length)|0;p.m=.24;p.va=rnd(-1.4,1.4)}
+    else if(kind==='feather'){p.r=rnd(9,14);p.c=pickA(['#ffffff','#fff6ea','#f3e9ff']);p.m=.17;p.va=rnd(-1,1)}
+    else if(kind==='balloon'){p.r=rnd(17,25);p.c=pick();p.m=-.45;p.x=rnd(50,340);p.y=H+p.r*3;p.vy=-rnd(90,200);p.vx=rnd(-30,30)}
+    else if(kind==='bubble'){p.r=rnd(6,22);p.v=(Math.random()*2)|0;p.m=-.5;p.x=rnd(390*.12,390*.88);p.y=H+p.r;p.vy=-rnd(120,360);p.vx=rnd(-60,60)}
+    return p}
+  function target(){var n=Math.round(intensity*(reduce?.4:1)*130*perf),o=state.occ;
+    if(o==='birthday')return [['confetti',n*1.5],['streamer',n*.1],['balloon',Math.max(4,n*.07)]];
+    if(o==='graduation')return [['grad',n*.75],['star',n*.28],['streamer',n*.08]];
+    if(o==='wedding')return [['petal',n*.5],['flower',n*.16],['feather',n*.13],['spark',n*.2]];
+    if(o==='christmas')return [['snow',n*.4],['flake',n*.26],['ornament',n*.13]];
+    if(o==='holiday')return [['flake',n*.38],['spark',n*.22],['snow',n*.4]];
+    return [['bubble',n*.36]]}
+  function fill(){P=[];target().forEach(function(m){for(var i=0;i<m[1];i++)P.push(spawn(m[0],false))})}
+  function topUp(){var want={};target().forEach(function(m){want[m[0]]=Math.round(m[1])});var have={};P.forEach(function(p){have[p.k]=(have[p.k]||0)+1});
+    Object.keys(want).forEach(function(k){for(var i=(have[k]||0);i<want[k];i++)P.push(spawn(k,k==='bubble'||k==='balloon'))});
+    var over={};P=P.filter(function(p){if(!(p.k in want))return false;over[p.k]=(over[p.k]||0)+1;return over[p.k]<=want[p.k]+1})}
+  function kindNow(){var o=state.occ,q=Math.random();
+    if(o==='birthday')return q<.9?'confetti':'streamer';
+    if(o==='graduation')return q<.65?'grad':q<.9?'star':'streamer';
+    if(o==='wedding')return q<.55?'petal':q<.75?'flower':q<.9?'feather':'spark';
+    if(o==='christmas')return q<.55?'flake':'ornament';
+    if(o==='holiday')return q<.65?'flake':'spark';
+    return 'bubble'}
+  function burst(n){for(var i=0;i<n;i++){var k=kindNow(),p=spawn(k,true);p.vy=-rnd(200,520);p.vx=rnd(-120,120);if(k!=='bubble')p.y=H*.9;P.push(p)}whirl=Math.min(1,whirl+.15)}
+  function sprayBubbles(){for(var i=0,n=Math.round(28*perf);i<n;i++){var p=spawn('bubble',true);p.x=195+rnd(-40,40);p.vx=rnd(-180,180);p.vy=-rnd(300,640);P.push(p)}}
+  function shake(){whirl=1;P.forEach(function(p){p.vx+=rnd(-700,700);p.vy+=rnd(-700,400)})}
+  var fx={n:'',t:0,d:1},fxSp=0,pops=[];
+  function fountain(){var p=spawn(kindNow(),true);p.x=195+rnd(-14,14);p.y=H-8;p.vx=rnd(-230,230);p.vy=-rnd(650,1000);P.push(p)}
+  function makePop(x,y,r){var n=Math.round(10+10*perf),d=rnd(0,6.283),f=[];for(var i=0;i<n;i++)f.push({a:d+rnd(-1.15,1.15),v:rnd(60,190)*(.6+r/22),ln:rnd(.5,1.1)*r*1.5+6,dr:rnd(.9,2),b:Math.random()<.6});if(pops.length<24)pops.push({x:x,y:y,r:r,t:0,d:d,f:f})}
+  function popBalloon(b){makePop(b.x,b.y,b.r*.7);for(var i=0;i<16;i++){var q=spawn('confetti',false);q.x=b.x;q.y=b.y;q.c=b.c;q.vx=rnd(-320,320);q.vy=rnd(-380,160);P.push(q)}}
+  function popAt(x,y,rad){for(var i=P.length-1;i>=0;i--){var p=P[i];if(p.k==='bubble'&&Math.hypot(p.x-x,p.y-y)<rad+p.r){makePop(p.x,p.y,p.r);P.splice(i,1)}else if(p.k==='balloon'&&Math.hypot(p.x-x,p.y-y)<p.r*1.1+rad*.4){popBalloon(p);P.splice(i,1)}}}
+  function popAll(){var n=0;for(var i=P.length-1;i>=0&&n<(coarse?14:24);i--){var p=P[i];if(p.k==='bubble'){makePop(p.x,p.y,p.r);P.splice(i,1);n++}}}
+  function move(n){
+    if(n==='shake'){fx={n:'shake',t:2.5,d:2.5};shake()}
+    else if(n==='spray')sprayBubbles();else if(n==='pop')popAll();
+    else if(n==='settle'){fx.t=0;whirl=0;P.forEach(function(p){p.vx*=.05;p.vy*=.05})}
+    else fx={n:n,t:n==='gust'?3:5,d:n==='gust'?3:5}}
+
+  /* blow: bottom of the screen on a phone (where the mic is), straight at the screen on desktop */
+  function blowForce(p,dt,lv){
+    if(coarse){p.vy-=lv*(p.k==='bubble'?1500:2100)*dt*(0.4+p.y/H);p.vx+=(195-p.x)*.8*lv*dt+rnd(-1,1)*lv*500*dt}
+    else{var dx=p.x-195,dy=p.y-H*.45,d=Math.hypot(dx,dy)+40;p.vx+=dx/d*lv*2600*dt;p.vy+=(dy/d*1500+900)*lv*dt}}
+  function blowEmit(dt,lv){
+    if(coarse){var n=Math.floor(lv*dt*90)+(Math.random()<lv*dt*90%1?1:0);for(var i=0;i<n;i++){var p=spawn(kindNow(),true);p.x=195+rnd(-60,60);p.y=H-4;p.vx=rnd(-220,220)*lv;p.vy=-rnd(500,1100)*lv;P.push(p)}}}
+
+  var last=performance.now();
+  function step(now){
+    acc+=now-last;if(acc<30||hidden){if(hidden)last=now;requestAnimationFrame(step);return}
+    var dt=Math.min(.05,acc/1000);acc=0;last=now;
+    if(!paused){
+      ctx.clearRect(0,0,390,H);
+      whirl*=Math.pow(.35,dt);
+      var gx=tiltX*900*tiltK,gy=tiltY*500*tiltK,sc=reduce?.25:1;
+      var lv=Math.max(blowLevel,blowHold?.85:0);blowLevel*=Math.pow(.05,dt);
+      if(lv>.04)blowEmit(dt,lv);
+      if(fx.t>0){fx.t-=dt;if(fx.n==='shake')whirl=Math.max(whirl,fx.t/fx.d);if(fx.n==='fountain'){fxSp+=dt;while(fxSp>.05){fxSp-=.05;fountain()}}}
+      for(var i=P.length-1;i>=0;i--){
+        var p=P[i];p.life+=dt;var turb=whirl*700;
+        if(p.k==='bubble'||p.k==='balloon'){p.vy+=(-70+gy*.3)*dt;p.vx+=(gx*.8+Math.sin(p.life*2+p.ph)*70+rnd(-1,1)*turb*.2)*dt;p.vx*=Math.pow(.6,dt);p.vy*=Math.pow(.7,dt)}
+        else{p.vy+=(p.m*260+gy*p.m)*dt+rnd(-1,1)*turb*dt;p.vx+=(gx*p.m+Math.sin(p.life*1.6+p.ph)*40*p.m+rnd(-1,1)*turb)*dt;p.vx*=Math.pow(.25,dt);p.vy*=Math.pow(.18,dt);if(p.vy>p.m*160+60)p.vy=p.m*160+60}
+        if(lv>.04)blowForce(p,dt,lv);
+        if(fx.t>0){var dx=p.x-195,dy=p.y-H/2,dd=Math.hypot(dx,dy)+30;
+          if(fx.n==='vortex'){p.vx+=(-dy/dd*1100-dx/dd*140)*dt;p.vy+=(dx/dd*1100-dy/dd*140)*dt}
+          else if(fx.n==='gust'){var gp=(1-fx.t/fx.d)*(390+240)-120,gw=Math.max(0,1-Math.abs(p.x-gp)/170);p.vx+=2200*gw*dt;p.vy+=-500*gw*dt}
+          else if(fx.n==='zerog'){if(p.k==='bubble')p.vy+=70*dt;else p.vy-=p.m*260*dt;p.vx+=Math.sin(p.life*1.3+p.ph)*50*dt}}
+        if(drag){var ax=ptx-p.x,ay=pty-p.y,ad=Math.hypot(ax,ay)+20;if(ad<230){p.vx+=ax/ad*900*dt;p.vy+=ay/ad*900*dt}}
+        p.x+=p.vx*dt*sc;p.y+=p.vy*dt*sc;p.a+=p.va*dt;
+        for(var j=0;j<ledges.length;j++){var L=ledges[j];
+          if(p.x>L.x&&p.x<L.x+L.w){
+            if((p.k==='bubble'||p.k==='balloon')&&p.y-p.r<L.y+L.h&&p.y>L.y+L.h-12&&p.vy<0){p.y=L.y+L.h+p.r;p.vy=Math.abs(p.vy)*.05;p.rest+=dt;p.vx+=((p.x<L.x+L.w/2)?-1:1)*160*dt+gx*dt;if(p.rest>1.4+p.r*.04){p.vy=-80;p.rest=0}}
+            else if(p.k!=='bubble'&&p.k!=='balloon'&&p.k!=='snow'&&p.k!=='streamer'&&p.k!=='spark'&&p.y+p.r>L.y&&p.y<L.y+6&&p.vy>0){p.y=L.y-p.r;p.vy=0;p.vx+=((p.x<L.x+L.w/2)?-1:1)*30*dt}}}
+        if(p.x<-20)p.x=410;if(p.x>410)p.x=-20;
+        var gone=(p.k==='bubble')?p.y<-30:(p.k==='balloon')?p.y<-p.r*3.5:p.y>H+20;
+        if(gone){if(p.k==='bubble'||p.k==='balloon')P.splice(i,1);else{p.y=-10;p.x=rnd(0,390);p.vy=0}continue}
+        draw(p)}
+      for(var q=pops.length-1;q>=0;q--){var o=pops[q];o.t+=dt;var T=.6;if(o.t>T){pops.splice(q,1);continue}drawPop(o,o.t/T)}
+      sprayT+=dt;if(state.occ==='because'&&sprayT>.5){sprayT=0;P.push(spawn('bubble',true))}
+      if(state.occ==='birthday'&&sprayT>2.2){sprayT=0;var nb=0;P.forEach(function(q){if(q.k==='balloon')nb++});if(nb<8)P.push(spawn('balloon',true))}
+      var cap=Math.round(340*perf);if(P.length>cap)P.splice(0,P.length-cap)}
+    requestAnimationFrame(step)}
+  function drawPop(o,u){var e=1-(1-u)*(1-u),al=Math.pow(1-u,1.2),i,f,tip,tl,ca,sa,bx,by;
+    ctx.lineCap='round';
+    ctx.strokeStyle='rgba(255,255,255,'+al*.9+')';ctx.fillStyle='rgba(255,255,255,'+al+')';
+    for(i=0;i<o.f.length;i++){f=o.f[i];ca=Math.cos(f.a);sa=Math.sin(f.a);tip=o.r*.85+f.v*e*.5;tl=Math.max(o.r*.55,tip-f.ln*(1-u*.5));
+      ctx.lineWidth=1.5*(1-u*.5);ctx.beginPath();ctx.moveTo(o.x+ca*tl,o.y+sa*tl);ctx.lineTo(o.x+ca*tip,o.y+sa*tip);
+      if(f.b){var m=tl+(tip-tl)*.6;bx=o.x+ca*m;by=o.y+sa*m;var bl=(tip-tl)*.4;ctx.moveTo(bx,by);ctx.lineTo(bx+Math.cos(f.a+.6)*bl,by+Math.sin(f.a+.6)*bl);ctx.moveTo(bx,by);ctx.lineTo(bx+Math.cos(f.a-.6)*bl,by+Math.sin(f.a-.6)*bl)}
+      ctx.stroke();
+      ctx.beginPath();ctx.arc(o.x+ca*(tip+2),o.y+sa*(tip+2),f.dr*(1-u*.5),0,6.283);ctx.fill();
+      ctx.beginPath();ctx.arc(o.x+ca*(tip+9+u*8),o.y+sa*(tip+9+u*8),f.dr*.55,0,6.283);ctx.fill()}
+    var back=o.d+Math.PI,cols=['#ff4fd8','#3aa0ff','#2ee6d6','#ffe94a'],sp=1.1*(1-u*.85);
+    for(i=0;i<4;i++){ctx.strokeStyle=cols[i];ctx.globalAlpha=al*.8;ctx.lineWidth=2.6*(1-u*.6);ctx.beginPath();ctx.arc(o.x,o.y,o.r*(1+u*.28),back-sp+i*sp*.5,back-sp+i*sp*.5+sp*.45);ctx.stroke()}
+    ctx.globalAlpha=1}
+  function star5(r,ri){ctx.beginPath();for(var i=0;i<10;i++){var a=-1.5708+i*.6283,rr=i%2?ri:r;ctx[i?'lineTo':'moveTo'](Math.cos(a)*rr,Math.sin(a)*rr)}ctx.closePath()}
+  function draw(p){ctx.save();ctx.translate(p.x,p.y);var fl=Math.abs(Math.cos(p.life*2.6+p.ph)),k=p.k,i;
+    if(k==='snow'){ctx.drawImage(sprSnow,-p.r*1.6,-p.r*1.6,p.r*3.2,p.r*3.2)}
+    else if(k==='confetti'||k==='grad'){ctx.rotate(p.a);ctx.scale(1,fl*.8+.2);ctx.fillStyle=p.c;
+      if(p.s==='c'){ctx.globalAlpha=.88;ctx.beginPath();ctx.arc(0,0,p.r,0,6.283);ctx.fill();ctx.globalAlpha=.25;ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(-p.r*.25,-p.r*.25,p.r*.5,0,6.283);ctx.fill()}
+      else if(p.s==='q'){ctx.strokeStyle=p.c;ctx.lineWidth=2.4;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-p.r*1.2,0);ctx.bezierCurveTo(-p.r*.6,-p.r*.9,-p.r*.2,p.r*.9,p.r*.4,0);ctx.bezierCurveTo(p.r*.8,-p.r*.5,p.r*1.1,-p.r*.2,p.r*1.3,0);ctx.stroke()}
+      else if(p.s==='sq'){ctx.fillRect(-p.r,-p.r,p.r*2,p.r*2)}
+      else if(p.s==='cap'){ctx.beginPath();ctx.moveTo(0,-p.r*.55);ctx.lineTo(p.r*1.5,0);ctx.lineTo(0,p.r*.55);ctx.lineTo(-p.r*1.5,0);ctx.closePath();ctx.fill();ctx.fillStyle='rgba(0,0,0,.22)';ctx.beginPath();ctx.moveTo(-p.r*.6,p.r*.2);ctx.lineTo(-p.r*.6,p.r*.75);ctx.lineTo(p.r*.6,p.r*.75);ctx.lineTo(p.r*.6,p.r*.2);ctx.fill();ctx.strokeStyle='#f2b705';ctx.lineWidth=1.6;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(p.r*1.1,p.r*.7);ctx.stroke()}
+      else ctx.fillRect(-p.r,-p.r*.55,p.r*2,p.r*1.1)}
+    else if(k==='streamer'){ctx.rotate(Math.sin(p.life*.9+p.ph)*.5);ctx.strokeStyle=p.c;ctx.lineWidth=p.w;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();var N=12,amp=7+Math.sin(p.ph)*3;for(i=0;i<=N;i++){var yy=i*p.len/N,xx=Math.sin(i*.95+p.life*3+p.ph)*amp*(.4+i/N);ctx[i?'lineTo':'moveTo'](xx,yy)}ctx.stroke();ctx.strokeStyle='rgba(255,255,255,.25)';ctx.lineWidth=p.w*.35;ctx.stroke()}
+    else if(k==='star'){ctx.rotate(p.a);ctx.scale(1,fl*.6+.4);ctx.fillStyle=p.c;star5(p.r,p.r*.45);ctx.fill()}
+    else if(k==='spark'){var tw=.45+.55*Math.abs(Math.sin(p.life*2.2+p.ph));ctx.globalAlpha=tw;ctx.fillStyle=p.c;ctx.beginPath();ctx.moveTo(0,-p.r);ctx.quadraticCurveTo(0,0,p.r,0);ctx.quadraticCurveTo(0,0,0,p.r);ctx.quadraticCurveTo(0,0,-p.r,0);ctx.quadraticCurveTo(0,0,0,-p.r);ctx.fill()}
+    else if(k==='flake'){ctx.rotate(p.a);ctx.strokeStyle=p.c;ctx.lineWidth=1.4;ctx.lineCap='round';ctx.beginPath();for(i=0;i<6;i++){ctx.rotate(1.0472);ctx.moveTo(0,0);ctx.lineTo(p.r,0);ctx.moveTo(p.r*.55,0);ctx.lineTo(p.r*.8,p.r*.26);ctx.moveTo(p.r*.55,0);ctx.lineTo(p.r*.8,-p.r*.26)}ctx.stroke()}
+    else if(k==='petal'){ctx.rotate(p.a);ctx.scale(1,fl*.75+.25);ctx.fillStyle=p.c;ctx.beginPath();ctx.moveTo(0,-p.r*1.2);ctx.bezierCurveTo(p.r*.9,-p.r*.6,p.r*.8,p.r*.7,0,p.r);ctx.bezierCurveTo(-p.r*.8,p.r*.7,-p.r*.9,-p.r*.6,0,-p.r*1.2);ctx.fill();ctx.strokeStyle='rgba(190,110,135,.3)';ctx.lineWidth=.8;ctx.stroke()}
+    else if(k==='flower'){ctx.rotate(p.a);ctx.scale(1,fl*.35+.65);ctx.drawImage(sprFl[p.v],-p.r,-p.r,p.r*2,p.r*2)}
+    else if(k==='feather'){ctx.rotate(p.a+Math.sin(p.life*1.3+p.ph)*.4);var L=p.r*1.5,Wd=p.r*.5;ctx.fillStyle=p.c;ctx.beginPath();ctx.moveTo(0,-L);ctx.bezierCurveTo(Wd*1.5,-L*.5,Wd*1.2,L*.4,0,L*.8);ctx.bezierCurveTo(-Wd*1.2,L*.4,-Wd*1.5,-L*.5,0,-L);ctx.fill();ctx.strokeStyle='rgba(170,140,120,.55)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,-L*.9);ctx.lineTo(0,L*1.15);ctx.stroke();ctx.lineWidth=.7;ctx.strokeStyle='rgba(170,140,120,.3)';ctx.beginPath();for(i=-2;i<=2;i++){var by=i*L*.3;ctx.moveTo(0,by);ctx.lineTo(Wd*.9,by-L*.18);ctx.moveTo(0,by);ctx.lineTo(-Wd*.9,by-L*.18)}ctx.stroke()}
+    else if(k==='balloon'){var r=p.r,sw=Math.sin(p.life*1.4+p.ph);ctx.rotate(sw*.07);
+      ctx.strokeStyle='rgba(20,18,16,.55)';ctx.lineWidth=1.1;ctx.beginPath();ctx.moveTo(0,r*1.12);ctx.bezierCurveTo(sw*7,r*1.7,-sw*7,r*2.3,sw*4,r*3.1);ctx.stroke();
+      ctx.fillStyle=p.c;ctx.beginPath();ctx.moveTo(0,r*1.12);ctx.bezierCurveTo(-r*.95,r*.55,-r*.95,-r*1.1,0,-r*1.1);ctx.bezierCurveTo(r*.95,-r*1.1,r*.95,r*.55,0,r*1.12);ctx.fill();
+      ctx.beginPath();ctx.moveTo(0,r*1.1);ctx.lineTo(-r*.17,r*1.3);ctx.lineTo(r*.17,r*1.3);ctx.closePath();ctx.fill();
+      ctx.fillStyle='rgba(0,0,0,.12)';ctx.beginPath();ctx.ellipse(r*.3,r*.15,r*.55,r*.85,.15,0,6.283);ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,.55)';ctx.beginPath();ctx.ellipse(-r*.38,-r*.42,r*.14,r*.3,.5,0,6.283);ctx.fill()}
+    else if(k==='ornament'){ctx.rotate(Math.sin(p.life*1.2+p.ph)*.3);var r=p.r;ctx.fillStyle=p.c;ctx.beginPath();ctx.arc(0,0,r,0,6.283);ctx.fill();ctx.fillStyle='rgba(0,0,0,.14)';ctx.beginPath();ctx.arc(r*.25,r*.25,r*.75,0,6.283);ctx.fill();ctx.fillStyle='rgba(255,255,255,.6)';ctx.beginPath();ctx.ellipse(-r*.35,-r*.38,r*.2,r*.3,.6,0,6.283);ctx.fill();ctx.fillStyle='#c9a227';ctx.fillRect(-r*.28,-r-3.5,r*.56,3.5);ctx.strokeStyle='#c9a227';ctx.lineWidth=1;ctx.beginPath();ctx.arc(0,-r-5.5,2,0,6.283);ctx.stroke()}
+    else if(k==='bubble'){ctx.drawImage(sprBubs[p.v],-p.r,-p.r,p.r*2,p.r*2)}
+    ctx.restore()}
+
+  /* pointer: tilt, whirl, flick-to-shake, tap-to-pop */
+  phone.addEventListener('pointerdown',function(e){drag=true;lx=e.clientX;ly=e.clientY;upd(e)});
+  window.addEventListener('pointerup',function(){drag=false;tiltX=0;tiltY=0});
+  function upd(e){var r=phone.getBoundingClientRect();ptx=(e.clientX-r.left)/SC;pty=(e.clientY-r.top)/SC;return r}
+  phone.addEventListener('pointermove',function(e){var r=upd(e);tiltX=((e.clientX-r.left)/r.width-.5)*2;tiltY=((e.clientY-r.top)/r.height-.5)*.8;
+    if(drag){var d=Math.hypot(e.clientX-lx,e.clientY-ly);if(d>45&&Date.now()-lastShake>900){lastShake=Date.now();move('shake')}whirl=Math.min(1,whirl+d*.004);lx=e.clientX;ly=e.clientY}});
+  phone.addEventListener('pointerleave',function(){tiltX=0;tiltY=0});
+  phone.addEventListener('click',function(e){if(e.target.closest('[data-act],[contenteditable],.cs'))return;upd(e);popAt(ptx,pty,60)});
+
+  /* controls */
+  function setOcc(o,fromScreen){state.occ=o;
+    [].forEach.call(document.querySelectorAll('#occ button,#occ2 button'),function(b){b.setAttribute('aria-pressed',b.dataset.o===o)});
+    if(!fromScreen){var nm={because:'Just because',birthday:'Birthday',graduation:'Graduation',wedding:'Wedding',holiday:'Holiday',christmas:'Christmas'}[o];state.occName=nm;render()}
+    fill();if(o==='because')sprayBubbles();else burst(14)}
+  ['occ','occ2'].forEach(function(id){document.getElementById(id).addEventListener('click',function(e){var b=e.target.closest('button');if(b)setOcc(b.dataset.o)})});
+  var iv=document.getElementById('int'),gv=document.getElementById('grav');
+  iv.oninput=function(){intensity=iv.value/100;document.getElementById('intv').textContent=iv.value+'%';topUp()};
+  gv.oninput=function(){tiltK=gv.value/100;document.getElementById('gv').textContent=gv.value+'%'};
+  document.getElementById('moves').addEventListener('click',function(e){var b=e.target.closest('[data-fx]');if(b)move(b.dataset.fx)});
+  var pb=document.getElementById('pause');
+  pb.onclick=function(){paused=!paused;pb.setAttribute('aria-pressed',paused);pb.textContent=paused?'Play':'Pause';last=performance.now()};
+  document.getElementById('intv').textContent='55%';document.getElementById('gv').textContent='60%';
+  var mm=document.getElementById('mmsg');
+
+  /* blow: hold button always works; mic needs a page that is allowed to use the microphone */
+  var bh=document.getElementById('blowhold');
+  ['pointerdown'].forEach(function(t){bh.addEventListener(t,function(e){e.preventDefault();blowHold=true})});
+  ['pointerup','pointerleave','pointercancel'].forEach(function(t){bh.addEventListener(t,function(){blowHold=false})});
+  var bm=document.getElementById('blowmic'),stream=null,an=null,ac=null,buf=null,floor=.02;
+  function micLoop(){if(!micOn)return;an.getFloatTimeDomainData(buf);var s=0;for(var i=0;i<buf.length;i++)s+=buf[i]*buf[i];var rms=Math.sqrt(s/buf.length);
+    floor=floor*.995+rms*.005;var lv=Math.max(0,Math.min(1,(rms-Math.max(.03,floor*2.2))*9));if(lv>blowLevel)blowLevel=lv;requestAnimationFrame(micLoop)}
+  bm.onclick=function(){
+    if(micOn){micOn=false;bm.setAttribute('aria-pressed',false);if(stream)stream.getTracks().forEach(function(t){t.stop()});mm.textContent='Microphone off.';return}
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){mm.textContent='This viewer has no microphone access. Use "Hold to blow", or open the standalone page.';return}
+    mm.textContent='Asking for the microphone...';
+    navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}}).then(function(s){
+      stream=s;ac=new (window.AudioContext||window.webkitAudioContext)();var src=ac.createMediaStreamSource(s);an=ac.createAnalyser();an.fftSize=1024;buf=new Float32Array(an.fftSize);src.connect(an);
+      micOn=true;bm.setAttribute('aria-pressed',true);mm.textContent=coarse?'Blow toward the bottom of your phone.':'Blow straight at the screen.';micLoop()
+    }).catch(function(){mm.textContent='Microphone blocked here. Use "Hold to blow", or open the standalone page and allow the microphone.'})};
+
+  /* phone motion (works only on a standalone page; the artifact viewer blocks the sensors) */
+  var gotMotion=false;
+  function onOri(e){if(e.gamma==null)return;gotMotion=true;tiltX=Math.max(-1,Math.min(1,e.gamma/35));tiltY=Math.max(-1,Math.min(1,(e.beta-50)/60))*.4}
+  function onMot(e){var a=e.accelerationIncludingGravity;if(!a)return;gotMotion=true;var m=Math.abs(a.x||0)+Math.abs(a.y||0)+Math.abs(a.z||0),d=Math.abs(m-lastAcc);lastAcc=m;if(d>18&&Date.now()-lastShake>900){lastShake=Date.now();move('shake')}}
+  document.getElementById('motion').onclick=function(){
+    mm.textContent='Asking for motion access...';
+    function go(){window.addEventListener('deviceorientation',onOri);window.addEventListener('devicemotion',onMot);setTimeout(function(){mm.textContent=gotMotion?'Motion on. Tilt and shake your phone.':'This viewer blocks motion sensors. Drag and flick instead.'},1500)}
+    try{var D=window.DeviceMotionEvent;if(D&&typeof D.requestPermission==='function'){D.requestPermission().then(function(s){if(s==='granted')go();else mm.textContent='Motion access was declined.'}).catch(function(){mm.textContent='This viewer blocks motion sensors. Drag and flick instead.'})}else go()}catch(err){mm.textContent='Motion sensors are not available here.'}};
+
+  document.addEventListener('visibilitychange',function(){hidden=document.hidden});
+  window.addEventListener('resize',fit);
+  render();fill();sprayBubbles();requestAnimationFrame(step);
+})();
+</script>
